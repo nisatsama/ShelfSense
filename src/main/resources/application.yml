@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: shelfsense
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/shelfsense
+    username: shelfsense
+    password: shelfsense_dev
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true

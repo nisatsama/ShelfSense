@@ -9,6 +9,8 @@ public record InventoryResponse(
         int onHand,
         int reserved,
         int available,
-        Long version
+        Long version,
+
+        String name
 ) {
 }

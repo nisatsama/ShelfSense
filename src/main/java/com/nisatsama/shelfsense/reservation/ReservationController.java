@@ -29,7 +29,14 @@ public class ReservationController {
 
         return toResponse(reservation);
     }
-
+    @GetMapping("/{id}")
+    public ReservationResponse findById(
+            @PathVariable Long id
+    ) {
+        return toResponse(
+                reservationService.findById(id)
+        );
+    }
     private static ReservationResponse toResponse(
             Reservation reservation
     ) {

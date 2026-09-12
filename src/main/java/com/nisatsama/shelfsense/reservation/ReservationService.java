@@ -90,4 +90,13 @@ public class ReservationService {
 
         return reservationRepository.save(reservation);
     }
+    @Transactional(readOnly = true)
+    public Reservation findById(Long id) {
+        return reservationRepository.findWithProductAndLocationById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Reservation not found: " + id
+                        )
+                );
+    }
 }

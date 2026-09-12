@@ -4,8 +4,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/shelfsense
-    username: shelfsense
-    password: shelfsense_dev
+    username: postgres
+    password: 1234
     driver-class-name: org.postgresql.Driver
 
   jpa:

@@ -45,6 +45,14 @@ public class ReservationController {
                 reservationService.release(id)
         );
     }
+    @PutMapping("/{id}/confirm")
+    public ReservationResponse confirm(
+            @PathVariable Long id
+    ) {
+        return toResponse(
+                reservationService.confirm(id)
+        );
+    }
     private static ReservationResponse toResponse(
             Reservation reservation
     ) {

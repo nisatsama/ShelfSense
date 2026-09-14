@@ -136,4 +136,57 @@ public class ReservationService {
 
         return reservationRepository.save(reservation);
     }
+    public Reservation confirm(Long reservationId) {
+
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Reservation not found: " + reservationId
+                        )
+                );
+
+        if (reservation.getStatus() != ReservationStatus.ACTIVE) {
+            throw new IllegalArgumentException(
+                    "Only ACTIVE reservations can be confirmed"
+            );
+        }
+
+        Inventory inventory = inventoryRepository
+                .findByProductIdAndLocationId(
+                        reservation.getProduct().getId(),
+                        reservation.getLocation().getId()
+                )
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Inventory not found for reservation: "
+                                        + reservationId
+                        )
+                );
+
+        if (inventory.getReserved() < reservation.getQuantity()) {
+            throw new IllegalArgumentException(
+                    "Reserved inventory is insufficient for confirmation"
+            );
+        }
+
+        if (inventory.getOnHand() < reservation.getQuantity()) {
+            throw new IllegalArgumentException(
+                    "On-hand inventory is insufficient for confirmation"
+            );
+        }
+
+        inventory.setOnHand(
+                inventory.getOnHand() - reservation.getQuantity()
+        );
+
+        inventory.setReserved(
+                inventory.getReserved() - reservation.getQuantity()
+        );
+
+        reservation.setStatus(ReservationStatus.CONFIRMED);
+
+        inventoryRepository.save(inventory);
+
+        return reservationRepository.save(reservation);
+    }
 }

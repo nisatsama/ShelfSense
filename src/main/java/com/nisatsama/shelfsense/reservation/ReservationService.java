@@ -99,4 +99,41 @@ public class ReservationService {
                         )
                 );
     }
+    public Reservation release(Long reservationId) {
+
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Reservation not found: " + reservationId
+                        )
+                );
+
+        if (reservation.getStatus() != ReservationStatus.ACTIVE) {
+            throw new IllegalArgumentException(
+                    "Only ACTIVE reservations can be released"
+            );
+        }
+
+        Inventory inventory = inventoryRepository
+                .findByProductIdAndLocationId(
+                        reservation.getProduct().getId(),
+                        reservation.getLocation().getId()
+                )
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Inventory not found for reservation: "
+                                        + reservationId
+                        )
+                );
+
+        inventory.setReserved(
+                inventory.getReserved() - reservation.getQuantity()
+        );
+
+        reservation.setStatus(ReservationStatus.RELEASED);
+
+        inventoryRepository.save(inventory);
+
+        return reservationRepository.save(reservation);
+    }
 }

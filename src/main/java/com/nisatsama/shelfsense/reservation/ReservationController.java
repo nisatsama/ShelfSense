@@ -37,6 +37,14 @@ public class ReservationController {
                 reservationService.findById(id)
         );
     }
+    @PutMapping("/{id}/release")
+    public ReservationResponse release(
+            @PathVariable Long id
+    ) {
+        return toResponse(
+                reservationService.release(id)
+        );
+    }
     private static ReservationResponse toResponse(
             Reservation reservation
     ) {

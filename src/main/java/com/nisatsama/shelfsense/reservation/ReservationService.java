@@ -2,6 +2,9 @@ package com.nisatsama.shelfsense.reservation;
 
 import com.nisatsama.shelfsense.inventory.Inventory;
 import com.nisatsama.shelfsense.inventory.InventoryRepository;
+import com.nisatsama.shelfsense.inventory.InventoryTransaction;
+import com.nisatsama.shelfsense.inventory.InventoryTransactionRepository;
+import com.nisatsama.shelfsense.inventory.InventoryTransactionType;
 import com.nisatsama.shelfsense.location.Location;
 import com.nisatsama.shelfsense.location.LocationRepository;
 import com.nisatsama.shelfsense.product.Product;
@@ -15,17 +18,20 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final InventoryRepository inventoryRepository;
+    private final InventoryTransactionRepository inventoryTransactionRepository;
     private final ProductRepository productRepository;
     private final LocationRepository locationRepository;
 
     public ReservationService(
             ReservationRepository reservationRepository,
             InventoryRepository inventoryRepository,
+            InventoryTransactionRepository inventoryTransactionRepository,
             ProductRepository productRepository,
             LocationRepository locationRepository
     ) {
         this.reservationRepository = reservationRepository;
         this.inventoryRepository = inventoryRepository;
+        this.inventoryTransactionRepository = inventoryTransactionRepository;
         this.productRepository = productRepository;
         this.locationRepository = locationRepository;
     }
@@ -87,9 +93,18 @@ public class ReservationService {
         reservation.setStatus(ReservationStatus.ACTIVE);
 
         inventoryRepository.save(inventory);
+        Reservation created = reservationRepository.save(reservation);
+        inventoryTransactionRepository.append(InventoryTransaction.create(
+                inventory,
+                InventoryTransactionType.RESERVATION_CREATED,
+                0,
+                quantity,
+                created.getId()
+        ));
 
-        return reservationRepository.save(reservation);
+        return created;
     }
+
     @Transactional(readOnly = true)
     public Reservation findById(Long id) {
         return reservationRepository.findWithProductAndLocationById(id)
@@ -99,6 +114,7 @@ public class ReservationService {
                         )
                 );
     }
+
     public Reservation release(Long reservationId) {
 
         Reservation reservation = reservationRepository.findById(reservationId)
@@ -133,9 +149,18 @@ public class ReservationService {
         reservation.setStatus(ReservationStatus.RELEASED);
 
         inventoryRepository.save(inventory);
+        Reservation released = reservationRepository.save(reservation);
+        inventoryTransactionRepository.append(InventoryTransaction.create(
+                inventory,
+                InventoryTransactionType.RESERVATION_RELEASED,
+                0,
+                -reservation.getQuantity(),
+                reservation.getId()
+        ));
 
-        return reservationRepository.save(reservation);
+        return released;
     }
+
     public Reservation confirm(Long reservationId) {
 
         Reservation reservation = reservationRepository.findById(reservationId)
@@ -186,7 +211,15 @@ public class ReservationService {
         reservation.setStatus(ReservationStatus.CONFIRMED);
 
         inventoryRepository.save(inventory);
+        Reservation confirmed = reservationRepository.save(reservation);
+        inventoryTransactionRepository.append(InventoryTransaction.create(
+                inventory,
+                InventoryTransactionType.RESERVATION_CONFIRMED,
+                -reservation.getQuantity(),
+                -reservation.getQuantity(),
+                reservation.getId()
+        ));
 
-        return reservationRepository.save(reservation);
+        return confirmed;
     }
 }

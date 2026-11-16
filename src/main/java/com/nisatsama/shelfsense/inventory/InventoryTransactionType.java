@@ -2,6 +2,7 @@ package com.nisatsama.shelfsense.inventory;
 
 public enum InventoryTransactionType {
 
+    INITIAL_STOCK,
     PURCHASE_RECEIVED,
     SALE,
     RESERVATION_CREATED,

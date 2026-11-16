@@ -12,15 +12,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class InventoryService {
 
     private final InventoryRepository inventoryRepository;
+    private final InventoryTransactionRepository inventoryTransactionRepository;
     private final ProductRepository productRepository;
     private final LocationRepository locationRepository;
 
     public InventoryService(
             InventoryRepository inventoryRepository,
+            InventoryTransactionRepository inventoryTransactionRepository,
             ProductRepository productRepository,
             LocationRepository locationRepository
     ) {
         this.inventoryRepository = inventoryRepository;
+        this.inventoryTransactionRepository = inventoryTransactionRepository;
         this.productRepository = productRepository;
         this.locationRepository = locationRepository;
     }
@@ -62,7 +65,11 @@ public class InventoryService {
         inventory.setOnHand(onHand);
         inventory.setReserved(0);
 
-        return inventoryRepository.save(inventory);
+        Inventory created = inventoryRepository.save(inventory);
+        inventoryTransactionRepository.append(InventoryTransaction.create(
+                created, InventoryTransactionType.INITIAL_STOCK, onHand, 0, null
+        ));
+        return created;
     }
 
     @Transactional(readOnly = true)

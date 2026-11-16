@@ -15,3 +15,10 @@ spring:
 
   flyway:
     enabled: true
+
+shelfsense:
+  security:
+    jwt:
+      issuer: ${SHELF_SENSE_JWT_ISSUER:shelfsense}
+      secret: ${SHELF_SENSE_JWT_SECRET:}
+      expiration: ${SHELF_SENSE_JWT_EXPIRATION:PT15M}

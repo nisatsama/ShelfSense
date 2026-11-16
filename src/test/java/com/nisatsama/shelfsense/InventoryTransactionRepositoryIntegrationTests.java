@@ -70,6 +70,8 @@ class InventoryTransactionRepositoryIntegrationTests {
         reservation.setLocation(location);
         reservation.setQuantity(2);
         reservation.setStatus(ReservationStatus.ACTIVE);
+        reservation.setCreatedAt(java.time.LocalDateTime.now());
+        reservation.setExpiresAt(java.time.LocalDateTime.now().plusMinutes(10));
         reservation = reservationRepository.saveAndFlush(reservation);
 
         InventoryTransaction reserve = InventoryTransaction.create(

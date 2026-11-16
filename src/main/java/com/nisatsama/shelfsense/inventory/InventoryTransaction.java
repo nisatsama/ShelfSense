@@ -85,6 +85,7 @@ public class InventoryTransaction {
             case RESERVATION_CONFIRMED -> onHandDelta < 0
                     && reservedDelta < 0
                     && onHandDelta == reservedDelta;
+            case RESERVATION_EXPIRED -> onHandDelta == 0 && reservedDelta < 0;
             case PURCHASE_RECEIVED, TRANSFER_IN, RETURN -> onHandDelta > 0 && reservedDelta == 0;
             case SALE, TRANSFER_OUT -> onHandDelta < 0 && reservedDelta == 0;
             case ADJUSTMENT -> onHandDelta != 0 && reservedDelta == 0;
@@ -102,7 +103,8 @@ public class InventoryTransaction {
     ) {
         boolean reservationEvent = type == InventoryTransactionType.RESERVATION_CREATED
                 || type == InventoryTransactionType.RESERVATION_RELEASED
-                || type == InventoryTransactionType.RESERVATION_CONFIRMED;
+                || type == InventoryTransactionType.RESERVATION_CONFIRMED
+                || type == InventoryTransactionType.RESERVATION_EXPIRED;
         if (reservationEvent != (reservationId != null)
                 || (reservationId != null && reservationId <= 0)) {
             throw new IllegalArgumentException(
@@ -119,7 +121,7 @@ public class InventoryTransaction {
         return switch (type) {
             case INITIAL_STOCK, PURCHASE_RECEIVED, TRANSFER_IN, RETURN -> onHandDelta;
             case SALE, TRANSFER_OUT, RESERVATION_CONFIRMED -> Math.negateExact(onHandDelta);
-            case RESERVATION_CREATED, RESERVATION_RELEASED -> Math.abs(reservedDelta);
+            case RESERVATION_CREATED, RESERVATION_RELEASED, RESERVATION_EXPIRED -> Math.abs(reservedDelta);
             case ADJUSTMENT -> onHandDelta;
         };
     }

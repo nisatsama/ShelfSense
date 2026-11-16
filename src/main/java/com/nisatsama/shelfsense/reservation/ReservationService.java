@@ -2,6 +2,9 @@ package com.nisatsama.shelfsense.reservation;
 
 import com.nisatsama.shelfsense.inventory.Inventory;
 import com.nisatsama.shelfsense.inventory.InventoryRepository;
+import com.nisatsama.shelfsense.inventory.InventoryTransaction;
+import com.nisatsama.shelfsense.inventory.InventoryTransactionRepository;
+import com.nisatsama.shelfsense.inventory.InventoryTransactionType;
 import com.nisatsama.shelfsense.location.Location;
 import com.nisatsama.shelfsense.location.LocationRepository;
 import com.nisatsama.shelfsense.product.Product;
@@ -9,25 +12,34 @@ import com.nisatsama.shelfsense.product.ProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
+
 @Service
 @Transactional
 public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final InventoryRepository inventoryRepository;
+    private final InventoryTransactionRepository inventoryTransactionRepository;
     private final ProductRepository productRepository;
     private final LocationRepository locationRepository;
+    private final Clock clock;
 
     public ReservationService(
             ReservationRepository reservationRepository,
             InventoryRepository inventoryRepository,
+            InventoryTransactionRepository inventoryTransactionRepository,
             ProductRepository productRepository,
-            LocationRepository locationRepository
+            LocationRepository locationRepository,
+            Clock clock
     ) {
         this.reservationRepository = reservationRepository;
         this.inventoryRepository = inventoryRepository;
+        this.inventoryTransactionRepository = inventoryTransactionRepository;
         this.productRepository = productRepository;
         this.locationRepository = locationRepository;
+        this.clock = clock;
     }
 
     public Reservation create(
@@ -85,11 +97,23 @@ public class ReservationService {
         reservation.setLocation(location);
         reservation.setQuantity(quantity);
         reservation.setStatus(ReservationStatus.ACTIVE);
+        LocalDateTime createdAt = LocalDateTime.now(clock);
+        reservation.setCreatedAt(createdAt);
+        reservation.setExpiresAt(createdAt.plusMinutes(10));
 
         inventoryRepository.save(inventory);
+        Reservation created = reservationRepository.save(reservation);
+        inventoryTransactionRepository.append(InventoryTransaction.create(
+                inventory,
+                InventoryTransactionType.RESERVATION_CREATED,
+                0,
+                quantity,
+                created.getId()
+        ));
 
-        return reservationRepository.save(reservation);
+        return created;
     }
+
     @Transactional(readOnly = true)
     public Reservation findById(Long id) {
         return reservationRepository.findWithProductAndLocationById(id)
@@ -99,9 +123,10 @@ public class ReservationService {
                         )
                 );
     }
+
     public Reservation release(Long reservationId) {
 
-        Reservation reservation = reservationRepository.findById(reservationId)
+        Reservation reservation = reservationRepository.findByIdForUpdate(reservationId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Reservation not found: " + reservationId
@@ -113,6 +138,7 @@ public class ReservationService {
                     "Only ACTIVE reservations can be released"
             );
         }
+        ensureNotExpired(reservation);
 
         Inventory inventory = inventoryRepository
                 .findByProductIdAndLocationId(
@@ -133,12 +159,21 @@ public class ReservationService {
         reservation.setStatus(ReservationStatus.RELEASED);
 
         inventoryRepository.save(inventory);
+        Reservation released = reservationRepository.save(reservation);
+        inventoryTransactionRepository.append(InventoryTransaction.create(
+                inventory,
+                InventoryTransactionType.RESERVATION_RELEASED,
+                0,
+                -reservation.getQuantity(),
+                reservation.getId()
+        ));
 
-        return reservationRepository.save(reservation);
+        return released;
     }
+
     public Reservation confirm(Long reservationId) {
 
-        Reservation reservation = reservationRepository.findById(reservationId)
+        Reservation reservation = reservationRepository.findByIdForUpdate(reservationId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Reservation not found: " + reservationId
@@ -150,6 +185,7 @@ public class ReservationService {
                     "Only ACTIVE reservations can be confirmed"
             );
         }
+        ensureNotExpired(reservation);
 
         Inventory inventory = inventoryRepository
                 .findByProductIdAndLocationId(
@@ -186,7 +222,22 @@ public class ReservationService {
         reservation.setStatus(ReservationStatus.CONFIRMED);
 
         inventoryRepository.save(inventory);
+        Reservation confirmed = reservationRepository.save(reservation);
+        inventoryTransactionRepository.append(InventoryTransaction.create(
+                inventory,
+                InventoryTransactionType.RESERVATION_CONFIRMED,
+                -reservation.getQuantity(),
+                -reservation.getQuantity(),
+                reservation.getId()
+        ));
 
-        return reservationRepository.save(reservation);
+        return confirmed;
+    }
+
+    private void ensureNotExpired(Reservation reservation) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (reservation.getExpiresAt() == null || !reservation.getExpiresAt().isAfter(now)) {
+            throw new IllegalArgumentException("Reservation has expired");
+        }
     }
 }

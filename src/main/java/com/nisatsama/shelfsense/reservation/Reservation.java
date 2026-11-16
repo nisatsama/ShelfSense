@@ -37,8 +37,9 @@ public class Reservation {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
         if (status == null) {
             status = ReservationStatus.ACTIVE;
         }
@@ -82,6 +83,10 @@ public class Reservation {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public LocalDateTime getExpiresAt() {

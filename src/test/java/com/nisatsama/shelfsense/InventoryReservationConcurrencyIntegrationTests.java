@@ -6,6 +6,9 @@ import com.nisatsama.shelfsense.inventory.InventoryService;
 import com.nisatsama.shelfsense.inventory.InventoryTransaction;
 import com.nisatsama.shelfsense.inventory.InventoryTransactionRepository;
 import com.nisatsama.shelfsense.inventory.InventoryTransactionType;
+import com.nisatsama.shelfsense.account.Account;
+import com.nisatsama.shelfsense.account.AccountRepository;
+import com.nisatsama.shelfsense.account.AccountRole;
 import org.springframework.jdbc.core.JdbcTemplate;
 import com.nisatsama.shelfsense.location.Location;
 import com.nisatsama.shelfsense.location.LocationRepository;
@@ -24,6 +27,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
 import java.net.URI;
@@ -89,6 +93,10 @@ class InventoryReservationConcurrencyIntegrationTests {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired private AccountRepository accountRepository;
+    @Autowired private PasswordEncoder passwordEncoder;
+    private Long testAccountId;
+
     @Autowired
     private PlatformTransactionManager transactionManager;
 
@@ -105,6 +113,7 @@ class InventoryReservationConcurrencyIntegrationTests {
         boolean workersTerminated = false;
 
         try {
+            String authorization = loginForTest(httpClient);
             String requestBody = "{\"productId\":" + fixture.productId()
                     + ",\"locationId\":" + fixture.locationId()
                     + ",\"quantity\":1}";
@@ -112,6 +121,7 @@ class InventoryReservationConcurrencyIntegrationTests {
                     .uri(URI.create("http://localhost:" + port + "/api/v1/reservations"))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + authorization)
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
 
@@ -231,22 +241,57 @@ class InventoryReservationConcurrencyIntegrationTests {
         } finally {
             start.countDown();
             executor.shutdown();
-            try {
-                workersTerminated = executor.awaitTermination(45, TimeUnit.SECONDS);
-                if (!workersTerminated) {
+            boolean interrupted = false;
+            while (!executor.isTerminated()) {
+                try {
+                    if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+                        executor.shutdownNow();
+                    }
+                } catch (InterruptedException exception) {
+                    interrupted = true;
                     executor.shutdownNow();
-                    workersTerminated = executor.awaitTermination(15, TimeUnit.SECONDS);
                 }
-            } catch (InterruptedException exception) {
-                executor.shutdownNow();
-                Thread.currentThread().interrupt();
             }
+            workersTerminated = true;
 
-            cleanupFixture(fixture);
+            try {
+                cleanupFixture(fixture);
+            } finally {
+                if (testAccountId != null) {
+                    Long accountId = testAccountId;
+                    accountRepository.deleteById(accountId);
+                    testAccountId = null;
+                    assertThat(accountRepository.findById(accountId)).isEmpty();
+                }
+            }
+            if (interrupted) Thread.currentThread().interrupt();
             assertThat(workersTerminated)
                     .as("all HTTP worker tasks finish before fixture cleanup")
                     .isTrue();
         }
+    }
+
+    private String loginForTest(HttpClient client) throws Exception {
+        String login = "concurrency-" + UUID.randomUUID() + "@example.com";
+        String password = UUID.randomUUID().toString() + UUID.randomUUID();
+        Account account = new Account();
+        account.setLoginIdentifier(login);
+        account.setPasswordHash(passwordEncoder.encode(password));
+        account.setRole(AccountRole.USER);
+        accountRepository.saveAndFlush(account);
+        testAccountId = account.getId();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/v1/auth/login"))
+                .timeout(REQUEST_TIMEOUT)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"loginIdentifier\":\"" + login
+                        + "\",\"password\":\"" + password + "\"}"))
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(HttpStatus.OK.value());
+        Matcher matcher = Pattern.compile("\\\"accessToken\\\":\\\"([^\\\"]+)\\\"").matcher(response.body());
+        assertThat(matcher.find()).isTrue();
+        return matcher.group(1);
     }
 
     private Fixture createFixture() {

@@ -6,6 +6,9 @@ import com.nisatsama.shelfsense.inventory.InventoryService;
 import com.nisatsama.shelfsense.inventory.InventoryTransaction;
 import com.nisatsama.shelfsense.inventory.InventoryTransactionRepository;
 import com.nisatsama.shelfsense.inventory.InventoryTransactionType;
+import com.nisatsama.shelfsense.account.Account;
+import com.nisatsama.shelfsense.account.AccountRepository;
+import com.nisatsama.shelfsense.account.AccountRole;
 import com.nisatsama.shelfsense.location.Location;
 import com.nisatsama.shelfsense.location.LocationService;
 import com.nisatsama.shelfsense.location.LocationType;
@@ -31,6 +34,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
 import java.net.URI;
@@ -80,16 +84,28 @@ class ReservationExpiryIntegrationTests {
     @Autowired private InventoryTransactionRepository transactionRepository;
     @Autowired private JdbcTemplate jdbcTemplate;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private AccountRepository accountRepository;
+    @Autowired private PasswordEncoder passwordEncoder;
     @LocalServerPort private int port;
 
     private final List<Fixture> fixtures = new ArrayList<>();
+    private Long httpTestAccountId;
 
     @AfterEach
     void cleanupFixtures() {
-        for (Fixture fixture : fixtures) {
-            deleteFixture(fixture);
+        try {
+            for (Fixture fixture : fixtures) {
+                deleteFixture(fixture);
+            }
+        } finally {
+            fixtures.clear();
+            if (httpTestAccountId != null) {
+                Long accountId = httpTestAccountId;
+                accountRepository.deleteById(accountId);
+                httpTestAccountId = null;
+                assertThat(accountRepository.findById(accountId)).isEmpty();
+            }
         }
-        fixtures.clear();
     }
 
     @Test
@@ -370,6 +386,7 @@ class ReservationExpiryIntegrationTests {
                 .uri(URI.create("http://localhost:" + port + "/api/v1/reservations"))
                 .timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + loginForHttp())
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
         HttpResponse<String> response = HttpClient.newHttpClient()
@@ -381,6 +398,30 @@ class ReservationExpiryIntegrationTests {
                 .matcher(response.body());
         assertThat(expiresAt.find()).isTrue();
         assertThat(expiresAt.group(1)).isEqualTo(FIXED_NOW.plusMinutes(10).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")));
+    }
+
+    private String loginForHttp() throws Exception {
+        String login = "expiry-http-" + UUID.randomUUID() + "@example.com";
+        String password = UUID.randomUUID().toString() + UUID.randomUUID();
+        Account account = new Account();
+        account.setLoginIdentifier(login);
+        account.setPasswordHash(passwordEncoder.encode(password));
+        account.setRole(AccountRole.USER);
+        accountRepository.saveAndFlush(account);
+        httpTestAccountId = account.getId();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/v1/auth/login"))
+                .timeout(Duration.ofSeconds(10))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"loginIdentifier\":\"" + login
+                        + "\",\"password\":\"" + password + "\"}"))
+                .build();
+        HttpResponse<String> response = HttpClient.newHttpClient()
+                .send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(HttpStatus.OK.value());
+        Matcher token = Pattern.compile("\\\"accessToken\\\":\\\"([^\\\"]+)\\\"").matcher(response.body());
+        assertThat(token.find()).isTrue();
+        return token.group(1);
     }
 
     private void assertExpiryWinsRaceAgainstLifecycleOperation(boolean confirmation) throws Exception {

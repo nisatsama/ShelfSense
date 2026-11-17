@@ -1,12 +1,11 @@
-
-spring:
+﻿spring:
   application:
     name: shelfsense
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/shelfsense
-    username: shelfsense
-    password: ShelfSenseDev2026!
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/shelfsense}
+    username: ${SPRING_DATASOURCE_USERNAME:shelfsense}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -16,6 +15,9 @@ spring:
 
   flyway:
     enabled: true
+
+server:
+  port: ${PORT:8080}
 
 shelfsense:
   security:

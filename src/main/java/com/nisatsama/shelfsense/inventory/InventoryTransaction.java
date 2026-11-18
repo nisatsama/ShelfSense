@@ -50,7 +50,8 @@ public class InventoryTransaction {
             InventoryTransactionType type,
             int onHandDelta,
             int reservedDelta,
-            Long reservationId
+            Long reservationId,
+            Long referenceId
     ) {
         this.inventory = Objects.requireNonNull(inventory, "inventory is required");
         this.type = Objects.requireNonNull(type, "transaction type is required");
@@ -59,7 +60,7 @@ public class InventoryTransaction {
         this.onHandDelta = onHandDelta;
         this.reservedDelta = reservedDelta;
         this.reservationId = reservationId;
-        this.referenceId = reservationId;
+        this.referenceId = referenceId != null ? referenceId : reservationId;
         this.quantity = legacyQuantity(type, onHandDelta, reservedDelta);
     }
 
@@ -70,7 +71,17 @@ public class InventoryTransaction {
             int reservedDelta,
             Long reservationId
     ) {
-        return new InventoryTransaction(inventory, type, onHandDelta, reservedDelta, reservationId);
+        return new InventoryTransaction(inventory, type, onHandDelta, reservedDelta, reservationId, reservationId);
+    }
+
+    public static InventoryTransaction createWithReference(
+            Inventory inventory,
+            InventoryTransactionType type,
+            int onHandDelta,
+            int reservedDelta,
+            Long referenceId
+    ) {
+        return new InventoryTransaction(inventory, type, onHandDelta, reservedDelta, null, referenceId);
     }
 
     private static void validateDeltaShape(

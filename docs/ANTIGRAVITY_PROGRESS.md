@@ -28,8 +28,8 @@
 - **Baseline Maven Test Suite:** `44/44` passed, `0` failures, `0` errors, `0` skipped.
 
 ## Milestone Tracker
-- [x] M1: Security, RBAC, CORS, Account Management, Reservation Ownership (`48/48` tests passed)
-- [ ] M2: Inventory Adjustments, Ledger Query API, Multi-location Transfers
+- [x] M1: Security, RBAC, CORS, Account Management, Reservation Ownership (`48/48` tests passed — commit `b2d91f2`)
+- [x] M2: Inventory Adjustments, Ledger Query API, Multi-location Transfers (`50/50` tests passed)
 - [ ] M3: Procurement (Suppliers, Purchase Orders, Goods Receipt)
 - [ ] M4: Replenishment Engine, Dashboard Summary & API Quality
 - [ ] M5: Real M5 Dataset, Preprocessing, Model Training & Evaluation

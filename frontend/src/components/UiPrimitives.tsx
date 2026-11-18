@@ -73,10 +73,10 @@ export const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-        styles[status] || 'bg-slate-100 text-slate-700 border-slate-200'
+        (status && styles[status]) || 'bg-slate-100 text-slate-700 border-slate-200'
       }`}
     >
-      {status.replace(/_/g, ' ')}
+      {status ? status.replace(/_/g, ' ') : 'UNKNOWN'}
     </span>
   );
 };

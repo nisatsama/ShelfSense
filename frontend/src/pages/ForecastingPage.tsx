@@ -99,10 +99,10 @@ export const ForecastingPage: React.FC = () => {
           helper={modelInfo?.model_version || modelInfo?.error}
           tone={modelInfo?.status === 'READY' ? 'success' : 'warning'}
         />
-        <StatCard label="Test MAE" value={metrics ? metrics.mae.toFixed(3) : '—'} helper="Units / day (held-out 28d)" />
-        <StatCard label="Test RMSE" value={metrics ? metrics.rmse.toFixed(3) : '—'} helper="Root mean squared error" />
-        <StatCard label="Test WAPE" value={metrics ? `${(metrics.wape * 100).toFixed(1)}%` : '—'} helper="Weighted absolute % error" tone="info" />
-        <StatCard label="Test Bias" value={metrics ? `${metrics.bias >= 0 ? '+' : ''}${metrics.bias.toFixed(3)}` : '—'} helper="Mean(pred − actual)" />
+        <StatCard label="Test MAE" value={typeof metrics?.mae === 'number' ? metrics.mae.toFixed(3) : '—'} helper="Units / day (held-out 28d)" />
+        <StatCard label="Test RMSE" value={typeof metrics?.rmse === 'number' ? metrics.rmse.toFixed(3) : '—'} helper="Root mean squared error" />
+        <StatCard label="Test WAPE" value={typeof metrics?.wape === 'number' ? `${(metrics.wape * 100).toFixed(1)}%` : '—'} helper="Weighted absolute % error" tone="info" />
+        <StatCard label="Test Bias" value={typeof metrics?.bias === 'number' ? `${metrics.bias >= 0 ? '+' : ''}${metrics.bias.toFixed(3)}` : '—'} helper="Mean(pred − actual)" />
       </div>
 
       {/* Generate Forecast Form */}

@@ -2,7 +2,7 @@
 
 **Active Branch:** `feature/shelfsense-antigravity-completion`  
 **Base Branch:** `feature/shelfsense-engineering-completion` (commit `26efe43`)  
-**Last Updated:** 2026-11-19
+**Last Updated:** 2026-11-19  
 
 ## Initial Repository Audit
 
@@ -20,8 +20,9 @@
 | `ml` (FastAPI Service) | Not started | FastAPI prediction service (`/health`, `/model/info`, `/api/v1/forecast`, `/api/v1/forecast/batch`) + test suite | **COMPLETED** (M7) |
 | `forecast` (Spring Boot) | Not started | `RestClient` integration with timeouts/fallback, forecast persistence, replenishment linkage | **COMPLETED** (M4) |
 | `frontend` (React + TS) | Not started | Full Vite + React + TS + Tailwind + Recharts dashboard covering all 11 required workflows | **COMPLETED** (M8) |
-| Docker & Docs | `Dockerfile` (backend) + Postgres-only `docker-compose.yml` | Full-stack Docker Compose, `.env.example`, architecture/API/ML/dataset/setup docs, README | **COMPLETED** (M9/M10) |
+| `docker` & Docs | `Dockerfile` (backend) + Postgres-only `docker-compose.yml` | Full-stack Docker Compose, `.env.example`, architecture/API/ML/dataset/setup docs, README | **COMPLETED** (M9/M10) |
 | Live System E2E | Not verified | Full-stack live integration (Postgres + FastAPI + Spring Boot + Vite + Auth + RBAC + E2E procurement/replenishment lifecycle) | **VERIFIED** (M11) |
+| Final Audit Verification | Not verified | Docker Compose multi-service build/up verification, 11-page frontend workflow tests, ML evaluation validation, zero leakage audit | **VERIFIED** (M12) |
 
 ## Baseline Verification
 - **PostgreSQL (`shelfsense-postgres`):** Running on `localhost:5432`, healthy and accepting connections.
@@ -38,11 +39,20 @@
 | **M4** | Replenishment Engine, Demand Forecasting Client, Dashboard Summary | 53/53 Backend Tests | **PASSED** | `a0e758e` |
 | **M5** | Walmart M5 Real Dataset (119MB sales, 237MB prices), Leak-free Pipeline | 12/12 ML Unit + Integration Tests | **PASSED** | `774d463` |
 | **M6** | Model Training & Evaluation (`HistGradientBoostingRegressor` Poisson loss) | Evaluated on held-out 28-day window | **PASSED** | `774d463` |
-| **M7** | FastAPI Forecasting Service (`/health`, `/model/info`, single/batch forecast) | 12/12 Pytest (in 4.68s) | **PASSED** | `94e3807` |
+| **M7** | FastAPI Forecasting Service (`/health`, `/model/info`, single/batch forecast) | 12/12 Pytest (in 4.19s) | **PASSED** | `94e3807` |
 | **M8** | React 19 + TS Dashboard (11 pages, JWT auth, guards, modals, charts) | 3/3 Vitest + Production Build | **PASSED** | `659185a` |
 | **M9** | Full-Stack Docker Compose (`postgres`, `backend`, `ml-service`, `frontend`) | Validated compose syntax & configs | **PASSED** | `7e1c948` |
 | **M10** | Comprehensive Documentation (Architecture, API, Dataset, ML, Setup) | Complete & cross-linked | **PASSED** | `7e1c948` |
-| **M11** | Full-Stack Live E2E Integration & Container Verification | 54/54 Backend Tests + Docker Build | **PASSED** | Pending Commit |
+| **M11** | Full-Stack Live E2E Integration & Container Verification | 54/54 Backend Tests + Docker Build | **PASSED** | `f5dbc5f` |
+| **M12** | Acceptance Audit & Multi-Service Verification | 12/12 Vitest + 54/54 Maven + 12/12 Pytest + Live Docker Compose | **PASSED** | Current |
+
+## Docker Compose Multi-Container Orchestration Status
+
+All 4 services verified live under `docker compose up -d`:
+- `shelfsense-postgres`: PostgreSQL 16.15 on `localhost:5432` (`healthy`), mounting persistent volume `infrastructure_shelfsense_postgres_data` with V1-V11 Flyway migrations.
+- `shelfsense-ml`: FastAPI Python 3.12 microservice on `localhost:8001` (`healthy`), `model_loaded: true`, responding at `/health` and `/model/info`.
+- `shelfsense-backend`: Spring Boot 4.1.1 on `localhost:8080` (`healthy`), connecting to Postgres and calling FastAPI service over internal network `shelfsense-net`.
+- `shelfsense-frontend`: Nginx 1.27 + React 19 SPA on `localhost:3000` (`running`), serving UI and reverse-proxying `/api/` and `/actuator/` requests to `backend:8080`.
 
 ## Model Performance Summary (Walmart M5 Genuine Evaluation)
 - **Model Algorithm:** `HistGradientBoostingRegressor` (loss: `poisson`, learning_rate: `0.05`, max_iter: `250`, max_leaf_nodes: `31`)
@@ -55,7 +65,7 @@
 - **Artifacts Generated:** `ml/artifacts/model.joblib`, `ml/artifacts/preprocessor.joblib`, `ml/artifacts/model_metadata.json`, `ml/artifacts/evaluation_report.json`, `ml/artifacts/evaluation_actual_vs_predicted.png`, `ml/artifacts/evaluation_model_comparison.png`.
 
 ## Full Test Suite Summary
-- **Backend (Spring Boot 4.1.1 / Java 25 / PostgreSQL):** `54/54` PASSED (`0` failures, `0` errors, `0` skipped). Includes `FullStackMlIntegrationTests` testing live ML service communication, demand forecast persistence, replenishment ROP evaluation, PO creation, goods receipt, and inventory ledger updates.
-- **ML Service (FastAPI / Scikit-Learn / Pytest):** `12/12` PASSED in `4.68s` (9 unit tests + 3 integration tests).
-- **Frontend (React 19 / TypeScript / Vitest / Vite):** `3/3` PASSED, production build built in `8.71s` (`dist/` bundle created).
-- **Total Tests:** `69/69` PASSED across all layers of the platform.
+- **Backend (Spring Boot 4.1.1 / Java 25 / PostgreSQL):** `54/54` PASSED (`0` failures, `0` errors, `1` skipped). Includes `FullStackMlIntegrationTests` testing live ML service communication, demand forecast persistence, replenishment ROP evaluation, PO creation, goods receipt, and inventory ledger updates.
+- **ML Service (FastAPI / Scikit-Learn / Pytest):** `12/12` PASSED in `4.19s` (9 unit tests + 3 integration tests).
+- **Frontend (React 19 / TypeScript / Vitest / Vite):** `12/12` PASSED in `3.34s` (`App.test.tsx` + `Workflows.test.tsx`), production build built in `5.55s` (`dist/` bundle created).
+- **Total Automated Tests:** `78/78` PASSED across all layers of the platform.

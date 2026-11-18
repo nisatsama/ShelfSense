@@ -115,4 +115,16 @@ public class GlobalExceptionHandler {
                 ex.getMessage()
         );
     }
+
+    @ExceptionHandler(com.nisatsama.shelfsense.forecast.MlServiceUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ApiError handleMlServiceUnavailable(
+            com.nisatsama.shelfsense.forecast.MlServiceUnavailableException ex
+    ) {
+        return new ApiError(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "SERVICE_UNAVAILABLE",
+                ex.getMessage()
+        );
+    }
 }

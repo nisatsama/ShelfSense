@@ -30,8 +30,8 @@
 ## Milestone Tracker
 - [x] M1: Security, RBAC, CORS, Account Management, Reservation Ownership (`48/48` tests passed — commit `b2d91f2`)
 - [x] M2: Inventory Adjustments, Ledger Query API, Multi-location Transfers (`50/50` tests passed — commit `2056bb2`)
-- [x] M3: Procurement (Suppliers, Purchase Orders, Goods Receipt) (`51/51` tests passed)
-- [ ] M4: Replenishment Engine, Dashboard Summary & API Quality
+- [x] M3: Procurement (Suppliers, Purchase Orders, Goods Receipt) (`51/51` tests passed — commit `6bf96a0`)
+- [x] M4: Replenishment Engine, Forecasting Client, Dashboard Summary (`53/53` tests passed)
 - [ ] M5: Real M5 Dataset, Preprocessing, Model Training & Evaluation
 - [ ] M6: FastAPI ML Microservice & Tests
 - [ ] M7: Spring Boot ML Integration & Forecast-Driven Replenishment

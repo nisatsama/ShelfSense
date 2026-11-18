@@ -2,8 +2,10 @@ package com.nisatsama.shelfsense.location;
 
 import com.nisatsama.shelfsense.location.dto.LocationCreateRequest;
 import com.nisatsama.shelfsense.location.dto.LocationResponse;
+import com.nisatsama.shelfsense.location.dto.LocationUpdateRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +22,7 @@ public class LocationController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public LocationResponse create(
             @Valid @RequestBody LocationCreateRequest request
     ) {
@@ -35,9 +38,22 @@ public class LocationController {
         return toResponse(saved);
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public LocationResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody LocationUpdateRequest request
+    ) {
+        Location updated = locationService.update(id, request.name(), request.type(), request.address());
+        return toResponse(updated);
+    }
+
     @GetMapping
-    public List<LocationResponse> findAll() {
-        return locationService.findAll()
+    public List<LocationResponse> findAll(
+            @RequestParam(required = false) LocationType type,
+            @RequestParam(required = false) String q
+    ) {
+        return locationService.search(type, q)
                 .stream()
                 .map(LocationController::toResponse)
                 .toList();

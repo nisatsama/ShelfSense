@@ -6,6 +6,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/reservations")
 public class ReservationController {
@@ -29,6 +31,16 @@ public class ReservationController {
 
         return toResponse(reservation);
     }
+
+    @GetMapping
+    public List<ReservationResponse> findAll(
+            @RequestParam(required = false) ReservationStatus status
+    ) {
+        return reservationService.findAllForCurrentAccount(status).stream()
+                .map(ReservationController::toResponse)
+                .toList();
+    }
+
     @GetMapping("/{id}")
     public ReservationResponse findById(
             @PathVariable Long id
@@ -37,6 +49,7 @@ public class ReservationController {
                 reservationService.findById(id)
         );
     }
+
     @PutMapping("/{id}/release")
     public ReservationResponse release(
             @PathVariable Long id
@@ -45,6 +58,7 @@ public class ReservationController {
                 reservationService.release(id)
         );
     }
+
     @PutMapping("/{id}/confirm")
     public ReservationResponse confirm(
             @PathVariable Long id
@@ -53,6 +67,7 @@ public class ReservationController {
                 reservationService.confirm(id)
         );
     }
+
     private static ReservationResponse toResponse(
             Reservation reservation
     ) {
@@ -65,7 +80,8 @@ public class ReservationController {
                 reservation.getQuantity(),
                 reservation.getStatus(),
                 reservation.getCreatedAt(),
-                reservation.getExpiresAt()
+                reservation.getExpiresAt(),
+                reservation.getAccountId()
         );
     }
 }

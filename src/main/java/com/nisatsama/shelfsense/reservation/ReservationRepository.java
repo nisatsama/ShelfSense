@@ -1,5 +1,6 @@
 package com.nisatsama.shelfsense.reservation;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -7,7 +8,6 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +21,18 @@ public interface ReservationRepository
     );
 
     List<Reservation> findByStatus(ReservationStatus status);
+
+    @EntityGraph(attributePaths = {"product", "location"})
+    List<Reservation> findAllByOrderByCreatedAtDescIdDesc();
+
+    @EntityGraph(attributePaths = {"product", "location"})
+    List<Reservation> findByStatusOrderByCreatedAtDescIdDesc(ReservationStatus status);
+
+    @EntityGraph(attributePaths = {"product", "location"})
+    List<Reservation> findByAccountIdOrderByCreatedAtDescIdDesc(Long accountId);
+
+    @EntityGraph(attributePaths = {"product", "location"})
+    List<Reservation> findByAccountIdAndStatusOrderByCreatedAtDescIdDesc(Long accountId, ReservationStatus status);
 
     @EntityGraph(attributePaths = {"product", "location"})
     Optional<Reservation> findWithProductAndLocationById(Long id);

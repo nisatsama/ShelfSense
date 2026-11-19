@@ -1,0 +1,2 @@
+org.springframework.boot.env.EnvironmentPostProcessor=com.nisatsama.shelfsense.TestEnvironmentPostProcessor
+org.springframework.context.ApplicationContextInitializer=com.nisatsama.shelfsense.TestEnvironmentInitializer

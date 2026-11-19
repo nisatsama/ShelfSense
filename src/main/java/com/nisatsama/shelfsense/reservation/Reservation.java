@@ -35,6 +35,9 @@ public class Reservation {
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
+    @Column(name = "account_id")
+    private Long accountId;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
@@ -95,5 +98,13 @@ public class Reservation {
 
     public void setExpiresAt(LocalDateTime expiresAt) {
         this.expiresAt = expiresAt;
+    }
+
+    public Long getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(Long accountId) {
+        this.accountId = accountId;
     }
 }

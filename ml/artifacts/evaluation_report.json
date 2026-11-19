@@ -1,0 +1,260 @@
+{
+  "model_version": "shelfsense-m5-hgbr-1.0.0",
+  "selected_model": "hist_gradient_boosting",
+  "overall_test_metrics": {
+    "mae": 0.8561,
+    "rmse": 1.6315,
+    "wape": 0.7882,
+    "bias": 0.0281
+  },
+  "baseline_comparison": {
+    "Moving Avg 7d": {
+      "mae": 0.8695,
+      "rmse": 1.7134,
+      "wape": 0.8005,
+      "bias": 0.0037
+    },
+    "Moving Avg 28d": {
+      "mae": 0.8573,
+      "rmse": 1.6597,
+      "wape": 0.7893,
+      "bias": -0.0019
+    },
+    "Seasonal Naive 7d": {
+      "mae": 1.021,
+      "rmse": 2.2177,
+      "wape": 0.9399,
+      "bias": -0.0021
+    },
+    "hist_gradient_boosting": {
+      "mae": 0.8561,
+      "rmse": 1.6315,
+      "wape": 0.7882,
+      "bias": 0.0281
+    }
+  },
+  "by_category": {
+    "FOODS": {
+      "mae": 1.1399,
+      "rmse": 2.1923,
+      "wape": 0.637,
+      "bias": 0.0134
+    },
+    "HOBBIES": {
+      "mae": 0.6983,
+      "rmse": 1.374,
+      "wape": 1.0384,
+      "bias": 0.0278
+    },
+    "HOUSEHOLD": {
+      "mae": 0.7302,
+      "rmse": 1.1365,
+      "wape": 0.9164,
+      "bias": 0.0432
+    }
+  },
+  "by_store": {
+    "CA_1": {
+      "mae": 0.7347,
+      "rmse": 1.2141,
+      "wape": 1.1622,
+      "bias": 0.0558
+    },
+    "CA_2": {
+      "mae": 0.8766,
+      "rmse": 1.6654,
+      "wape": 0.8255,
+      "bias": -0.0034
+    },
+    "CA_3": {
+      "mae": 0.9079,
+      "rmse": 1.4225,
+      "wape": 0.7649,
+      "bias": -0.0007
+    },
+    "CA_4": {
+      "mae": 0.8126,
+      "rmse": 1.5487,
+      "wape": 0.8479,
+      "bias": -0.0083
+    },
+    "TX_1": {
+      "mae": 0.6439,
+      "rmse": 1.036,
+      "wape": 1.1292,
+      "bias": 0.0098
+    },
+    "TX_2": {
+      "mae": 0.7496,
+      "rmse": 1.3222,
+      "wape": 0.7051,
+      "bias": 0.0841
+    },
+    "TX_3": {
+      "mae": 0.9182,
+      "rmse": 2.1221,
+      "wape": 1.048,
+      "bias": -0.0202
+    },
+    "WI_1": {
+      "mae": 0.795,
+      "rmse": 1.2868,
+      "wape": 0.7838,
+      "bias": 0.0751
+    },
+    "WI_2": {
+      "mae": 1.1093,
+      "rmse": 2.5531,
+      "wape": 0.5411,
+      "bias": 0.0713
+    },
+    "WI_3": {
+      "mae": 1.0135,
+      "rmse": 1.5654,
+      "wape": 0.6995,
+      "bias": 0.0177
+    }
+  },
+  "daily_actual_vs_predicted": [
+    {
+      "date": "2016-03-28",
+      "actual": 281.0,
+      "predicted": 282.14
+    },
+    {
+      "date": "2016-03-29",
+      "actual": 267.0,
+      "predicted": 276.11
+    },
+    {
+      "date": "2016-03-30",
+      "actual": 270.0,
+      "predicted": 297.41
+    },
+    {
+      "date": "2016-03-31",
+      "actual": 294.0,
+      "predicted": 328.39
+    },
+    {
+      "date": "2016-04-01",
+      "actual": 360.0,
+      "predicted": 348.76
+    },
+    {
+      "date": "2016-04-02",
+      "actual": 456.0,
+      "predicted": 420.49
+    },
+    {
+      "date": "2016-04-03",
+      "actual": 463.0,
+      "predicted": 431.58
+    },
+    {
+      "date": "2016-04-04",
+      "actual": 304.0,
+      "predicted": 326.06
+    },
+    {
+      "date": "2016-04-05",
+      "actual": 301.0,
+      "predicted": 331.01
+    },
+    {
+      "date": "2016-04-06",
+      "actual": 308.0,
+      "predicted": 338.29
+    },
+    {
+      "date": "2016-04-07",
+      "actual": 261.0,
+      "predicted": 320.69
+    },
+    {
+      "date": "2016-04-08",
+      "actual": 398.0,
+      "predicted": 348.68
+    },
+    {
+      "date": "2016-04-09",
+      "actual": 379.0,
+      "predicted": 422.06
+    },
+    {
+      "date": "2016-04-10",
+      "actual": 378.0,
+      "predicted": 390.03
+    },
+    {
+      "date": "2016-04-11",
+      "actual": 310.0,
+      "predicted": 328.41
+    },
+    {
+      "date": "2016-04-12",
+      "actual": 311.0,
+      "predicted": 314.88
+    },
+    {
+      "date": "2016-04-13",
+      "actual": 256.0,
+      "predicted": 296.01
+    },
+    {
+      "date": "2016-04-14",
+      "actual": 288.0,
+      "predicted": 308.61
+    },
+    {
+      "date": "2016-04-15",
+      "actual": 297.0,
+      "predicted": 336.95
+    },
+    {
+      "date": "2016-04-16",
+      "actual": 328.0,
+      "predicted": 364.76
+    },
+    {
+      "date": "2016-04-17",
+      "actual": 380.0,
+      "predicted": 356.42
+    },
+    {
+      "date": "2016-04-18",
+      "actual": 283.0,
+      "predicted": 291.34
+    },
+    {
+      "date": "2016-04-19",
+      "actual": 291.0,
+      "predicted": 278.7
+    },
+    {
+      "date": "2016-04-20",
+      "actual": 270.0,
+      "predicted": 283.15
+    },
+    {
+      "date": "2016-04-21",
+      "actual": 284.0,
+      "predicted": 280.9
+    },
+    {
+      "date": "2016-04-22",
+      "actual": 345.0,
+      "predicted": 304.56
+    },
+    {
+      "date": "2016-04-23",
+      "actual": 382.0,
+      "predicted": 374.94
+    },
+    {
+      "date": "2016-04-24",
+      "actual": 379.0,
+      "predicted": 378.91
+    }
+  ]
+}

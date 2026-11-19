@@ -1,19 +1,22 @@
 package com.nisatsama.shelfsense.security;
 
 import com.nisatsama.shelfsense.account.AccountRepository;
-import tools.jackson.databind.ObjectMapper;
 import com.nisatsama.shelfsense.common.ApiError;
-import java.util.Base64;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
+import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,22 +25,29 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
-import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
-import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.OncePerRequestFilter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import tools.jackson.databind.ObjectMapper;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfiguration {
+
     @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
     @Bean AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -71,20 +81,55 @@ public class SecurityConfiguration {
         return decoder;
     }
 
+    @Bean CorsConfigurationSource corsConfigurationSource(
+            @Value("${shelfsense.security.cors.allowed-origins:http://localhost:5173,http://localhost:3000}") String allowedOrigins
+    ) {
+        CorsConfiguration config = new CorsConfiguration();
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .toList();
+        config.setAllowedOrigins(origins);
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
+        config.setExposedHeaders(List.of("Content-Disposition"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
     @Bean SecurityFilterChain securityFilterChain(HttpSecurity http, JwtDecoder decoder,
-                                                   AccountRepository accounts, ObjectMapper mapper) throws Exception {
+                                                   AccountRepository accounts, ObjectMapper mapper,
+                                                   CorsConfigurationSource corsConfigurationSource) throws Exception {
         JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();
         authorities.setAuthoritiesClaimName("role");
         authorities.setAuthorityPrefix("ROLE_");
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(authorities);
-        http.csrf(csrf -> csrf.disable())
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource))
+            .csrf(csrf -> csrf.disable())
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/v1/auth/login").permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/register").permitAll()
                     .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                    .requestMatchers("/api/v1/accounts/**").hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.POST, "/api/v1/products/**", "/api/v1/locations/**",
+                            "/api/v1/inventory/**", "/api/v1/transfers/**", "/api/v1/suppliers/**",
+                            "/api/v1/purchase-orders/**", "/api/v1/replenishment/**").hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.PUT, "/api/v1/products/**", "/api/v1/locations/**",
+                            "/api/v1/inventory/**", "/api/v1/transfers/**", "/api/v1/suppliers/**",
+                            "/api/v1/purchase-orders/**", "/api/v1/replenishment/**").hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.PATCH, "/api/v1/products/**", "/api/v1/locations/**",
+                            "/api/v1/inventory/**", "/api/v1/transfers/**", "/api/v1/suppliers/**",
+                            "/api/v1/purchase-orders/**", "/api/v1/replenishment/**").hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, "/api/v1/products/**", "/api/v1/locations/**",
+                            "/api/v1/inventory/**", "/api/v1/transfers/**", "/api/v1/suppliers/**",
+                            "/api/v1/purchase-orders/**", "/api/v1/replenishment/**").hasRole("ADMIN")
                     .anyRequest().authenticated())
             .oauth2ResourceServer(resource -> resource.jwt(jwt -> jwt.decoder(decoder)
                     .jwtAuthenticationConverter(jwtAuthenticationConverter))

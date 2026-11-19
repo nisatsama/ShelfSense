@@ -2,8 +2,10 @@ package com.nisatsama.shelfsense.product;
 
 import com.nisatsama.shelfsense.product.dto.ProductCreateRequest;
 import com.nisatsama.shelfsense.product.dto.ProductResponse;
+import com.nisatsama.shelfsense.product.dto.ProductUpdateRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +22,7 @@ public class ProductController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public ProductResponse create(
             @Valid @RequestBody ProductCreateRequest request
     ) {
@@ -35,9 +38,29 @@ public class ProductController {
         return toResponse(saved);
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ProductResponse update(
+            @PathVariable Long id,
+            @Valid @RequestBody ProductUpdateRequest request
+    ) {
+        Product updated = productService.update(
+                id,
+                request.name(),
+                request.category(),
+                request.unitPrice(),
+                request.active()
+        );
+        return toResponse(updated);
+    }
+
     @GetMapping
-    public List<ProductResponse> findAll() {
-        return productService.findAll()
+    public List<ProductResponse> findAll(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Boolean active
+    ) {
+        return productService.search(q, category, active)
                 .stream()
                 .map(ProductController::toResponse)
                 .toList();

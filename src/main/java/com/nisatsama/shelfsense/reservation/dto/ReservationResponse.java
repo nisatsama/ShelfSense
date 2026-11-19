@@ -13,6 +13,7 @@ public record ReservationResponse(
         int quantity,
         ReservationStatus status,
         LocalDateTime createdAt,
-        LocalDateTime expiresAt
+        LocalDateTime expiresAt,
+        Long accountId
 ) {
 }

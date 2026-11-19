@@ -1,0 +1,25 @@
+{
+  "train_day_min": 1212,
+  "train_day_max": 1857,
+  "val_day_min": 1858,
+  "val_day_max": 1885,
+  "test_day_min": 1886,
+  "test_day_max": 1913,
+  "train_date_range": [
+    "2014-05-24",
+    "2016-02-28"
+  ],
+  "val_date_range": [
+    "2016-02-29",
+    "2016-03-27"
+  ],
+  "test_date_range": [
+    "2016-03-28",
+    "2016-04-24"
+  ],
+  "num_series": 300,
+  "total_rows": 210600,
+  "train_rows": 193800,
+  "val_rows": 8400,
+  "test_rows": 8400
+}

@@ -1,0 +1,38 @@
+import '@testing-library/jest-dom';
+
+// Ensure reliable in-memory Storage in Node 25+/26+ jsdom environments
+const store = new Map<string, string>();
+const memoryStorage: Storage = {
+  get length() {
+    return store.size;
+  },
+  clear() {
+    store.clear();
+  },
+  getItem(key: string) {
+    return store.has(key) ? store.get(key)! : null;
+  },
+  key(index: number) {
+    return Array.from(store.keys())[index] ?? null;
+  },
+  removeItem(key: string) {
+    store.delete(key);
+  },
+  setItem(key: string, value: string) {
+    store.set(key, String(value));
+  },
+};
+
+Object.defineProperty(globalThis, 'localStorage', {
+  value: memoryStorage,
+  configurable: true,
+  writable: true,
+});
+
+// Mock ResizeObserver for Recharts ResponsiveContainer in jsdom
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;

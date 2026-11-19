@@ -1,0 +1,129 @@
+{
+  "model_version": "shelfsense-m5-hgbr-1.0.0",
+  "selected_model": "hist_gradient_boosting",
+  "dataset": "Walmart M5 Forecasting Accuracy (sales_train_validation, calendar, sell_prices)",
+  "target_variable": "daily_unit_sales",
+  "forecast_horizon_days": 28,
+  "trained_at": "2026-11-18T16:44:22.655642+00:00",
+  "features": [
+    "lag_1",
+    "lag_7",
+    "lag_14",
+    "lag_28",
+    "rmean_7",
+    "rmean_14",
+    "rmean_28",
+    "rstd_7",
+    "rstd_28",
+    "wday",
+    "month",
+    "day_of_month",
+    "is_weekend",
+    "has_event",
+    "snap_active",
+    "sell_price",
+    "price_rel_mean",
+    "cat_code",
+    "store_code",
+    "state_code"
+  ],
+  "hyperparameters": {
+    "loss": "poisson",
+    "learning_rate": 0.05,
+    "max_iter": 250,
+    "max_leaf_nodes": 31,
+    "min_samples_leaf": 30,
+    "l2_regularization": 1.0,
+    "early_stopping": true,
+    "validation_fraction": 0.1,
+    "random_state": 42
+  },
+  "split_info": {
+    "train_day_min": 1212,
+    "train_day_max": 1857,
+    "val_day_min": 1858,
+    "val_day_max": 1885,
+    "test_day_min": 1886,
+    "test_day_max": 1913,
+    "train_date_range": [
+      "2014-05-24",
+      "2016-02-28"
+    ],
+    "val_date_range": [
+      "2016-02-29",
+      "2016-03-27"
+    ],
+    "test_date_range": [
+      "2016-03-28",
+      "2016-04-24"
+    ],
+    "num_series": 300,
+    "total_rows": 210600,
+    "train_rows": 193800,
+    "val_rows": 8400,
+    "test_rows": 8400
+  },
+  "validation_comparison": {
+    "baseline_ma7": {
+      "mae": 0.879,
+      "rmse": 1.716,
+      "wape": 0.8175,
+      "bias": -0.0153
+    },
+    "baseline_ma28": {
+      "mae": 0.8808,
+      "rmse": 1.7227,
+      "wape": 0.8192,
+      "bias": -0.0068
+    },
+    "baseline_seasonal_naive7": {
+      "mae": 1.0554,
+      "rmse": 2.2363,
+      "wape": 0.9815,
+      "bias": -0.0199
+    },
+    "ridge_regression": {
+      "mae": 0.8787,
+      "rmse": 1.6835,
+      "wape": 0.8173,
+      "bias": -0.0126
+    },
+    "hist_gradient_boosting": {
+      "mae": 0.8709,
+      "rmse": 1.7056,
+      "wape": 0.81,
+      "bias": 0.0014
+    }
+  },
+  "test_metrics": {
+    "mae": 0.8561,
+    "rmse": 1.6315,
+    "wape": 0.7882,
+    "bias": 0.0281
+  },
+  "test_baselines": {
+    "baseline_ma7": {
+      "mae": 0.8695,
+      "rmse": 1.7134,
+      "wape": 0.8005,
+      "bias": 0.0037
+    },
+    "baseline_ma28": {
+      "mae": 0.8573,
+      "rmse": 1.6597,
+      "wape": 0.7893,
+      "bias": -0.0019
+    },
+    "baseline_seasonal_naive7": {
+      "mae": 1.021,
+      "rmse": 2.2177,
+      "wape": 0.9399,
+      "bias": -0.0021
+    }
+  },
+  "limitations": [
+    "M5 contains historical unit sales rather than unconstrained demand with verified stockout labels.",
+    "Training uses a deterministic stratified subset of M5 store-SKU series across all 10 stores and 3 categories.",
+    "Point forecasts are returned without fabricated confidence intervals."
+  ]
+}

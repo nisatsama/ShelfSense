@@ -1,5 +1,6 @@
 package com.nisatsama.shelfsense.reservation;
 
+import com.nisatsama.shelfsense.account.Account;
 import com.nisatsama.shelfsense.inventory.Inventory;
 import com.nisatsama.shelfsense.inventory.InventoryRepository;
 import com.nisatsama.shelfsense.inventory.InventoryTransaction;
@@ -9,11 +10,14 @@ import com.nisatsama.shelfsense.location.Location;
 import com.nisatsama.shelfsense.location.LocationRepository;
 import com.nisatsama.shelfsense.product.Product;
 import com.nisatsama.shelfsense.product.ProductRepository;
+import com.nisatsama.shelfsense.security.CurrentAccountProvider;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @Transactional
@@ -24,6 +28,7 @@ public class ReservationService {
     private final InventoryTransactionRepository inventoryTransactionRepository;
     private final ProductRepository productRepository;
     private final LocationRepository locationRepository;
+    private final CurrentAccountProvider currentAccountProvider;
     private final Clock clock;
 
     public ReservationService(
@@ -32,6 +37,7 @@ public class ReservationService {
             InventoryTransactionRepository inventoryTransactionRepository,
             ProductRepository productRepository,
             LocationRepository locationRepository,
+            CurrentAccountProvider currentAccountProvider,
             Clock clock
     ) {
         this.reservationRepository = reservationRepository;
@@ -39,6 +45,7 @@ public class ReservationService {
         this.inventoryTransactionRepository = inventoryTransactionRepository;
         this.productRepository = productRepository;
         this.locationRepository = locationRepository;
+        this.currentAccountProvider = currentAccountProvider;
         this.clock = clock;
     }
 
@@ -100,6 +107,7 @@ public class ReservationService {
         LocalDateTime createdAt = LocalDateTime.now(clock);
         reservation.setCreatedAt(createdAt);
         reservation.setExpiresAt(createdAt.plusMinutes(10));
+        currentAccountProvider.currentAccountId().ifPresent(reservation::setAccountId);
 
         inventoryRepository.save(inventory);
         Reservation created = reservationRepository.save(reservation);
@@ -115,13 +123,30 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
+    public List<Reservation> findAllForCurrentAccount(ReservationStatus status) {
+        if (currentAccountProvider.hasAuthenticatedUser()) {
+            Account account = currentAccountProvider.requireCurrentAccount();
+            if (!currentAccountProvider.isAdmin(account)) {
+                return status == null
+                        ? reservationRepository.findByAccountIdOrderByCreatedAtDescIdDesc(account.getId())
+                        : reservationRepository.findByAccountIdAndStatusOrderByCreatedAtDescIdDesc(account.getId(), status);
+            }
+        }
+        return status == null
+                ? reservationRepository.findAllByOrderByCreatedAtDescIdDesc()
+                : reservationRepository.findByStatusOrderByCreatedAtDescIdDesc(status);
+    }
+
+    @Transactional(readOnly = true)
     public Reservation findById(Long id) {
-        return reservationRepository.findWithProductAndLocationById(id)
+        Reservation reservation = reservationRepository.findWithProductAndLocationById(id)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Reservation not found: " + id
                         )
                 );
+        enforceOwnership(reservation);
+        return reservation;
     }
 
     public Reservation release(Long reservationId) {
@@ -132,6 +157,7 @@ public class ReservationService {
                                 "Reservation not found: " + reservationId
                         )
                 );
+        enforceOwnership(reservation);
 
         if (reservation.getStatus() != ReservationStatus.ACTIVE) {
             throw new IllegalArgumentException(
@@ -179,6 +205,7 @@ public class ReservationService {
                                 "Reservation not found: " + reservationId
                         )
                 );
+        enforceOwnership(reservation);
 
         if (reservation.getStatus() != ReservationStatus.ACTIVE) {
             throw new IllegalArgumentException(
@@ -232,6 +259,19 @@ public class ReservationService {
         ));
 
         return confirmed;
+    }
+
+    private void enforceOwnership(Reservation reservation) {
+        if (!currentAccountProvider.hasAuthenticatedUser()) {
+            return;
+        }
+        Account account = currentAccountProvider.requireCurrentAccount();
+        if (currentAccountProvider.isAdmin(account)) {
+            return;
+        }
+        if (reservation.getAccountId() == null || !reservation.getAccountId().equals(account.getId())) {
+            throw new AccessDeniedException("You do not have permission to access this reservation.");
+        }
     }
 
     private void ensureNotExpired(Reservation reservation) {

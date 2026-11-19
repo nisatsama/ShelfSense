@@ -1,0 +1,96 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: shelfsense-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shelfsense}
+      POSTGRES_USER: ${POSTGRES_USER:-shelfsense}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shelfsense_dev}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - shelfsense_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shelfsense} -d ${POSTGRES_DB:-shelfsense}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shelfsense-net
+
+  ml-service:
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+    container_name: shelfsense-ml
+    restart: unless-stopped
+    ports:
+      - "${ML_PORT:-8001}:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - shelfsense-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shelfsense-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-shelfsense}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-shelfsense}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-shelfsense_dev}
+      SHELF_SENSE_JWT_ISSUER: ${SHELF_SENSE_JWT_ISSUER:-shelfsense}
+      SHELF_SENSE_JWT_SECRET: ${SHELF_SENSE_JWT_SECRET:?Set SHELF_SENSE_JWT_SECRET in .env}
+      SHELF_SENSE_JWT_EXPIRATION: ${SHELF_SENSE_JWT_EXPIRATION:-PT1H}
+      SHELF_SENSE_CORS_ALLOWED_ORIGINS: ${SHELF_SENSE_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      SHELF_SENSE_ML_URL: http://ml-service:8001
+      SHELF_SENSE_BOOTSTRAP_ADMIN_USERNAME: ${SHELF_SENSE_BOOTSTRAP_ADMIN_USERNAME:-}
+      SHELF_SENSE_BOOTSTRAP_ADMIN_PASSWORD: ${SHELF_SENSE_BOOTSTRAP_ADMIN_PASSWORD:-}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - shelfsense-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ""
+    container_name: shelfsense-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - shelfsense-net
+
+volumes:
+  shelfsense_postgres_data:
+    external: true
+    name: infrastructure_shelfsense_postgres_data
+
+networks:
+  shelfsense-net:
+    driver: bridge

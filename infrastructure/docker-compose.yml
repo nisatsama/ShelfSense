@@ -2,17 +2,20 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: shelfsense-postgres
-
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: shelfsense
-      POSTGRES_USER: shelfsense
-      POSTGRES_PASSWORD: shelfsense_dev
-
+      POSTGRES_DB: ${POSTGRES_DB:-shelfsense}
+      POSTGRES_USER: ${POSTGRES_USER:-shelfsense}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shelfsense_dev}
     ports:
-      - "5432:5432"
-
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - shelfsense_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shelfsense} -d ${POSTGRES_DB:-shelfsense}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   shelfsense_postgres_data:

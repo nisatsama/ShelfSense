@@ -215,3 +215,56 @@ def test_fastapi_unloaded_model_raises_503(monkeypatch) -> None:
     with pytest.raises(HTTPException) as exc_info:
         forecast(req)
     assert exc_info.value.status_code == 503
+
+
+@pytest.mark.unit
+def test_location_mapping_known_vs_unmapped_store(mock_registry) -> None:
+    """Verifies that known M5 stores and unmapped application locations resolve explicitly."""
+    # Known M5 store (CA_1)
+    req_known = ForecastRequest(
+        product_id="FOODS_3_090",
+        store_id="CA_1",
+        category="FOODS",
+        horizon_days=7,
+    )
+    res_known = forecast(req_known)
+    assert res_known.location_mapped is True
+    assert res_known.store_resolution == "KNOWN_M5_STORE"
+
+    # Unmapped application location (STORE-01 or WH-MAIN)
+    req_unmapped = ForecastRequest(
+        product_id="FOODS_3_090",
+        store_id="WH-MAIN",
+        category="FOODS",
+        horizon_days=7,
+    )
+    res_unmapped = forecast(req_unmapped)
+    assert res_unmapped.location_mapped is False
+    assert res_unmapped.store_resolution == "UNMAPPED_GENERIC_STORE"
+
+
+@pytest.mark.unit
+def test_empty_and_short_history_padding(mock_registry) -> None:
+    """Verifies that empty and short sales history are safely padded without NaN or runtime exceptions."""
+    # Empty history
+    req_empty = ForecastRequest(
+        product_id="SKU-1",
+        store_id="STORE-01",
+        recent_daily_sales=[],
+        horizon_days=14,
+    )
+    res_empty = forecast(req_empty)
+    assert len(res_empty.daily_predictions) == 14
+    assert res_empty.predicted_daily_demand > 0
+
+    # Short history (3 days)
+    req_short = ForecastRequest(
+        product_id="SKU-2",
+        store_id="STORE-01",
+        recent_daily_sales=[5.0, 7.0, 6.0],
+        horizon_days=28,
+    )
+    res_short = forecast(req_short)
+    assert len(res_short.daily_predictions) == 28
+    assert res_short.predicted_total_demand > 0
+

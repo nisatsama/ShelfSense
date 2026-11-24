@@ -21,11 +21,11 @@ jobs:
         env:
           POSTGRES_DB: shelfsense
           POSTGRES_USER: shelfsense
-          POSTGRES_PASSWORD: shelfsense_dev
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U shelfsense"
+          --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -62,13 +62,21 @@ jobs:
 
       - name: Run Maven Tests
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/shelfsense
+          SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/shelfsense
           SPRING_DATASOURCE_USERNAME: shelfsense
-          SPRING_DATASOURCE_PASSWORD: shelfsense_dev
           SHELF_SENSE_ML_URL: http://127.0.0.1:8001
         run: |
           chmod +x ./mvnw
-          ./mvnw clean test
+          ./mvnw clean test --batch-mode || {
+            echo "================ SUREFIRE REPORTS (FAILURES) ================"
+            for f in $(find target/surefire-reports -name "*txt"); do
+              if grep -E "FAILURE|ERROR" "$f" > /dev/null; then
+                echo "--- $f ---"
+                cat "$f"
+              fi
+            done
+            exit 1
+          }
 
   ml:
     name: ML Service Tests (Python 3.11 / Pytest)

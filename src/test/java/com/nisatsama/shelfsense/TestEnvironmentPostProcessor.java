@@ -28,7 +28,7 @@ public class TestEnvironmentPostProcessor implements EnvironmentPostProcessor {
         }
 
         if (!properties.isEmpty()) {
-            environment.getPropertySources().addLast(new MapPropertySource("shelfsenseTestDefaults", properties));
+            environment.getPropertySources().addFirst(new MapPropertySource("shelfsenseTestDefaults", properties));
         }
     }
 }

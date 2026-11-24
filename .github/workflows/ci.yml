@@ -47,36 +47,50 @@ jobs:
           python-version: '3.11'
           cache: pip
 
-      - name: Start ML Service daemon for full-stack integration tests
-        run: |
-          python -m pip install -r ml/requirements.txt
-          PYTHONPATH=ml nohup python -m uvicorn ml.src.api.main:app --host 127.0.0.1 --port 8001 > ml.log 2>&1 &
-          for i in $(seq 1 30); do
-            if curl -f http://127.0.0.1:8001/health; then
-              echo "ML service is healthy"
-              break
-            fi
-            sleep 1
-          done
-          curl -f http://127.0.0.1:8001/health || (cat ml.log && exit 1)
-
-      - name: Run Maven Tests
+      - name: Run Maven Tests with ML Daemon
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5432/shelfsense
           SPRING_DATASOURCE_USERNAME: shelfsense
           SHELF_SENSE_ML_URL: http://127.0.0.1:8001
         run: |
+          python -m pip install -r ml/requirements.txt
+          PYTHONPATH=ml python -m uvicorn ml.src.api.main:app --host 127.0.0.1 --port 8001 &
+          ML_PID=$!
+
+          for i in $(seq 1 30); do
+            if curl -s -f http://127.0.0.1:8001/health; then
+              echo "ML service is ready (PID: $ML_PID)"
+              break
+            fi
+            sleep 1
+          done
+
           chmod +x ./mvnw
-          ./mvnw clean test --batch-mode || {
-            echo "================ SUREFIRE REPORTS (FAILURES) ================"
-            for f in $(find target/surefire-reports -name "*txt"); do
-              if grep -E "FAILURE|ERROR" "$f" > /dev/null; then
-                echo "--- $f ---"
-                cat "$f"
+          ./mvnw clean test --batch-mode
+
+          kill $ML_PID || true
+
+      - name: Report Test Results to Summary
+        if: always()
+        run: |
+          echo "### Test Execution Results" >> $GITHUB_STEP_SUMMARY
+          if [ -d "target/surefire-reports" ]; then
+            for f in target/surefire-reports/*.txt; do
+              if grep -E "FAILURE|ERROR" "$f" > /dev/null 2>&1; then
+                echo "#### $f" >> $GITHUB_STEP_SUMMARY
+                echo '```' >> $GITHUB_STEP_SUMMARY
+                cat "$f" >> $GITHUB_STEP_SUMMARY
+                echo '```' >> $GITHUB_STEP_SUMMARY
               fi
             done
-            exit 1
-          }
+          fi
+
+      - name: Upload Surefire Reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
 
   ml:
     name: ML Service Tests (Python 3.11 / Pytest)

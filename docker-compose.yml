@@ -88,8 +88,6 @@ services:
 
 volumes:
   shelfsense_postgres_data:
-    external: true
-    name: infrastructure_shelfsense_postgres_data
 
 networks:
   shelfsense-net:

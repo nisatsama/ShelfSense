@@ -1,5 +1,7 @@
 package com.nisatsama.shelfsense.inventory;
 
+import com.nisatsama.shelfsense.common.ConflictException;
+import com.nisatsama.shelfsense.common.IdempotencyHelper;
 import com.nisatsama.shelfsense.location.Location;
 import com.nisatsama.shelfsense.location.LocationRepository;
 import com.nisatsama.shelfsense.product.Product;
@@ -97,10 +99,20 @@ public class InventoryService {
         String normalizedKey = idempotencyKey != null && !idempotencyKey.isBlank()
                 ? idempotencyKey.trim()
                 : null;
+        String requestHash = IdempotencyHelper.sha256Hex(
+                productId + ":" + locationId + ":" + quantityDelta + ":" + (reason != null ? reason.name() : "")
+        );
+
         if (normalizedKey != null) {
             var existing = inventoryAdjustmentRepository.findByIdempotencyKey(normalizedKey);
             if (existing.isPresent()) {
-                return existing.get();
+                InventoryAdjustment adj = existing.get();
+                if (adj.getRequestHash() != null && !adj.getRequestHash().equals(requestHash)) {
+                    throw new ConflictException(
+                            "Idempotency key '" + normalizedKey + "' was already used for a different adjustment request payload."
+                    );
+                }
+                return adj;
             }
         }
 
@@ -147,6 +159,7 @@ public class InventoryService {
         adjustment.setReason(reason);
         adjustment.setNotes(notes);
         adjustment.setIdempotencyKey(normalizedKey);
+        adjustment.setRequestHash(requestHash);
         currentAccountProvider.currentAccountId().ifPresent(adjustment::setPerformedByAccountId);
         return inventoryAdjustmentRepository.save(adjustment);
     }

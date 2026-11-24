@@ -39,6 +39,9 @@ public class InventoryAdjustment {
     @Column(name = "idempotency_key", length = 128, unique = true, updatable = false)
     private String idempotencyKey;
 
+    @Column(name = "request_hash", length = 64, updatable = false)
+    private String requestHash;
+
     @Column(name = "performed_by_account_id", updatable = false)
     private Long performedByAccountId;
 
@@ -69,6 +72,8 @@ public class InventoryAdjustment {
     public void setNotes(String notes) { this.notes = notes; }
     public String getIdempotencyKey() { return idempotencyKey; }
     public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
+    public String getRequestHash() { return requestHash; }
+    public void setRequestHash(String requestHash) { this.requestHash = requestHash; }
     public Long getPerformedByAccountId() { return performedByAccountId; }
     public void setPerformedByAccountId(Long performedByAccountId) { this.performedByAccountId = performedByAccountId; }
     public LocalDateTime getCreatedAt() { return createdAt; }

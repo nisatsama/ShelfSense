@@ -68,6 +68,8 @@ jobs:
           done
 
           if [ $READY -ne 1 ]; then
+            MSG=$(cat uvicorn.log | tr '\n' ' ')
+            echo "::error title=UvicornFailed::$MSG"
             echo "ML service failed to start! Uvicorn log:"
             cat uvicorn.log
             exit 1
@@ -77,7 +79,10 @@ jobs:
           ./mvnw clean test --batch-mode || {
             echo "=== SUREFIRE REPORTS ==="
             for f in target/surefire-reports/*.txt; do
-              echo "=== $f ==="
+              if grep -iE "failures: [1-9]|errors: [1-9]" "$f" > /dev/null 2>&1; then
+                MSG=$(cat "$f" | tr '\n' ' ')
+                echo "::error title=$(basename "$f")::$MSG"
+              fi
               cat "$f"
             done
             kill $ML_PID || true
@@ -92,6 +97,10 @@ jobs:
           echo "### Test Execution Results" >> $GITHUB_STEP_SUMMARY
           if [ -d "target/surefire-reports" ]; then
             for f in target/surefire-reports/*.txt; do
+              if grep -iE "failures: [1-9]|errors: [1-9]" "$f" > /dev/null 2>&1; then
+                MSG=$(cat "$f" | tr '\n' ' ')
+                echo "::error title=$(basename "$f")::$MSG"
+              fi
               echo "#### $(basename "$f")" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
               cat "$f" >> $GITHUB_STEP_SUMMARY

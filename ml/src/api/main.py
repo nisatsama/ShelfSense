@@ -51,6 +51,8 @@ class ForecastResponse(BaseModel):
     model_version: str
     prediction_timestamp: str
     daily_predictions: List[DailyPrediction]
+    location_mapped: bool = Field(default=False, description="Whether store_id matched a recognized M5 training store")
+    store_resolution: str = Field(default="UNMAPPED_GENERIC_STORE", description="Resolution strategy: KNOWN_M5_STORE or UNMAPPED_GENERIC_STORE")
 
 
 class BatchForecastRequest(BaseModel):
@@ -135,15 +137,29 @@ def _predict_single(req: ForecastRequest) -> ForecastResponse:
     feature_cols: List[str] = pre["feature_columns"]
     cat_code = _encode_category(req.category, pre["cat_map"], pre["default_cat_code"])
     store_key = req.store_id.strip().upper()
-    store_code = pre["store_map"].get(store_key, pre["default_store_code"])
-    state_prefix = store_key.split("_")[0] if "_" in store_key else ""
-    state_code = pre["state_map"].get(state_prefix, pre["default_state_code"])
+
+    # Explicit store and location resolution strategy:
+    # 1. Recognized M5 store IDs (CA_1..WI_3): mapped to specific learned store and state parameters.
+    # 2. Arbitrary application locations (STORE-01, WH-MAIN): handled via explicit unmapped generic baseline.
+    #    Does NOT silently pretend an unknown store is located in CA or a specific Walmart store.
+    #    State-specific SNAP policies are neutralized (0) for unmapped generic locations.
+    if store_key in pre["store_map"]:
+        store_code = pre["store_map"][store_key]
+        state_prefix = store_key.split("_")[0] if "_" in store_key else ""
+        state_code = pre["state_map"].get(state_prefix, pre["default_state_code"])
+        location_mapped = True
+        store_resolution = "KNOWN_M5_STORE"
+    else:
+        store_code = pre.get("default_store_code", 0)
+        state_code = pre.get("default_state_code", 0)
+        location_mapped = False
+        store_resolution = "UNMAPPED_GENERIC_STORE"
 
     median_price = float(pre.get("median_sell_price", 5.0))
     sell_price = float(req.sell_price) if (req.sell_price is not None and req.sell_price > 0) else median_price
     price_rel_mean = float(np.clip(sell_price / max(median_price, 0.01), 0.25, 4.0))
 
-    # Build a 28-day rolling history buffer from supplied history (or conservative default if empty)
+    # Build a 28-day rolling history buffer from supplied history (or conservative baseline if empty)
     if req.recent_daily_sales:
         base_series = [float(x) for x in req.recent_daily_sales]
         pad_value = float(np.mean(base_series[-7:])) if base_series else 1.0
@@ -157,6 +173,8 @@ def _predict_single(req: ForecastRequest) -> ForecastResponse:
     for offset in range(req.horizon_days):
         target_date = start + timedelta(days=offset)
         wday = _m5_wday(target_date)
+        # SNAP benefit distribution is state-specific; only apply to known US M5 state locations
+        snap_active = 1 if (location_mapped and target_date.day <= 10) else 0
         row = {
             "lag_1": history[-1],
             "lag_7": history[-7],
@@ -172,7 +190,7 @@ def _predict_single(req: ForecastRequest) -> ForecastResponse:
             "day_of_month": target_date.day,
             "is_weekend": 1 if wday in (1, 2) else 0,
             "has_event": 0,
-            "snap_active": 1 if target_date.day <= 10 else 0,
+            "snap_active": snap_active,
             "sell_price": sell_price,
             "price_rel_mean": price_rel_mean,
             "cat_code": cat_code,
@@ -202,6 +220,8 @@ def _predict_single(req: ForecastRequest) -> ForecastResponse:
         model_version=registry.model_version,
         prediction_timestamp=datetime.now(timezone.utc).isoformat(),
         daily_predictions=daily_points,
+        location_mapped=location_mapped,
+        store_resolution=store_resolution,
     )
 
 

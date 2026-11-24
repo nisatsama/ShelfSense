@@ -1,5 +1,7 @@
 package com.nisatsama.shelfsense.procurement;
 
+import com.nisatsama.shelfsense.common.ConflictException;
+import com.nisatsama.shelfsense.common.IdempotencyHelper;
 import com.nisatsama.shelfsense.common.ResourceNotFoundException;
 import com.nisatsama.shelfsense.inventory.Inventory;
 import com.nisatsama.shelfsense.inventory.InventoryRepository;
@@ -22,12 +24,14 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -152,10 +156,24 @@ public class ProcurementService {
                 ? request.idempotencyKey().trim()
                 : (headerIdempotencyKey != null && !headerIdempotencyKey.isBlank() ? headerIdempotencyKey.trim() : null);
 
+        String canonicalItems = request.items() == null ? "" : request.items().stream()
+                .sorted(Comparator.comparing(GoodsReceiptRequest.ItemReceipt::purchaseOrderItemId))
+                .map(i -> i.purchaseOrderItemId() + ":" + i.receivedQuantity())
+                .collect(Collectors.joining(","));
+        String requestHash = IdempotencyHelper.sha256Hex(
+                purchaseOrderId + ":" + canonicalItems
+        );
+
         if (key != null) {
             var existing = goodsReceiptRepository.findByIdempotencyKey(key);
             if (existing.isPresent()) {
-                return existing.get();
+                GoodsReceipt gr = existing.get();
+                if (gr.getRequestHash() != null && !gr.getRequestHash().equals(requestHash)) {
+                    throw new ConflictException(
+                            "Idempotency key '" + key + "' was already used for a different goods receipt request payload."
+                    );
+                }
+                return gr;
             }
         }
 
@@ -177,6 +195,7 @@ public class ProcurementService {
         receipt.setPurchaseOrder(po);
         receipt.setNotes(request.notes());
         receipt.setIdempotencyKey(key);
+        receipt.setRequestHash(requestHash);
         receipt.setReceivedAt(LocalDateTime.now(clock));
         currentAccountProvider.currentAccountId().ifPresent(receipt::setReceivedByAccountId);
 

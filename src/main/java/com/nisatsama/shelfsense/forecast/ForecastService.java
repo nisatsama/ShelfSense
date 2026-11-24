@@ -163,10 +163,34 @@ public class ForecastService {
         }
         List<InventoryTransaction> txs = transactionRepository.findByInventoryIdOrderByCreatedAtAscIdAsc(inv.getId());
         Map<LocalDate, Integer> dailyOutflow = new HashMap<>();
+        java.util.Set<Long> countedReservationIds = new java.util.HashSet<>();
+
         for (InventoryTransaction tx : txs) {
-            if (tx.getType() == InventoryTransactionType.SALE
-                    || tx.getType() == InventoryTransactionType.RESERVATION_CONFIRMED
-                    || tx.getType() == InventoryTransactionType.TRANSFER_OUT) {
+            InventoryTransactionType type = tx.getType();
+
+            // Customer demand definition:
+            // 1. Direct customer SALE: decrements onHand stock due to an immediate sale.
+            // 2. Customer RESERVATION_CONFIRMED: fulfills an active reservation, decrementing onHand and reserved stock.
+            // Explicitly EXCLUDE internal movements and non-customer events:
+            // - TRANSFER_OUT / TRANSFER_IN: Internal inter-location stock transfers (warehouse to store), NOT customer sales.
+            // - INITIAL_STOCK: Opening stock balance.
+            // - PURCHASE_RECEIVED: Inflow from supplier purchase order.
+            // - ADJUSTMENT: Shrinkage, damage, cycle count corrections.
+            // - RESERVATION_CREATED / RESERVATION_RELEASED / RESERVATION_EXPIRED: Holds/releases, not completed demand.
+
+            if (type == InventoryTransactionType.RESERVATION_CONFIRMED) {
+                Long resId = tx.getReservationId();
+                if (resId != null) {
+                    countedReservationIds.add(resId);
+                }
+                LocalDate day = tx.getCreatedAt().toLocalDate();
+                dailyOutflow.merge(day, Math.abs(tx.getOnHandDelta()), Integer::sum);
+            } else if (type == InventoryTransactionType.SALE) {
+                // Prevent double-counting if a SALE record was generated from a previously confirmed reservation
+                Long refResId = tx.getReservationId() != null ? tx.getReservationId() : tx.getReferenceId();
+                if (refResId != null && countedReservationIds.contains(refResId)) {
+                    continue;
+                }
                 LocalDate day = tx.getCreatedAt().toLocalDate();
                 dailyOutflow.merge(day, Math.abs(tx.getOnHandDelta()), Integer::sum);
             }
@@ -176,7 +200,7 @@ public class ForecastService {
         }
         LocalDate today = LocalDate.now(clock);
         List<Double> series = new ArrayList<>(28);
-        for (int i = 28; i >= 1; i--) {
+        for (int i = 27; i >= 0; i--) {
             LocalDate d = today.minusDays(i);
             series.add((double) dailyOutflow.getOrDefault(d, 0));
         }

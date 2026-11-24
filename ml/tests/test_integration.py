@@ -86,6 +86,22 @@ def test_end_to_end_real_model_inference() -> None:
     assert len(res.daily_predictions) == 14
     assert res.predicted_daily_demand >= 0.0
     assert res.predicted_total_demand >= 0.0
+    assert res.location_mapped is True
+    assert res.store_resolution == "KNOWN_M5_STORE"
+
+    # Unmapped application location (STORE-01)
+    req_unmapped = ForecastRequest(
+        product_id="FOODS_3_090",
+        store_id="STORE-01",
+        category="FOODS",
+        horizon_days=14,
+        sell_price=3.48,
+        recent_daily_sales=[4, 5, 3, 6, 7, 5, 4, 3, 5, 6, 4, 5, 6, 7],
+    )
+    res_unmapped = forecast(req_unmapped)
+    assert res_unmapped.location_mapped is False
+    assert res_unmapped.store_resolution == "UNMAPPED_GENERIC_STORE"
+    assert len(res_unmapped.daily_predictions) == 14
 
     # Batch Forecast
     batch = BatchForecastRequest(

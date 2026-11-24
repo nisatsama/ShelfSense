@@ -3,6 +3,12 @@ package com.nisatsama.shelfsense;
 import com.nisatsama.shelfsense.account.Account;
 import com.nisatsama.shelfsense.account.AccountRepository;
 import com.nisatsama.shelfsense.account.AccountRole;
+import com.nisatsama.shelfsense.inventory.InventoryService;
+import com.nisatsama.shelfsense.location.Location;
+import com.nisatsama.shelfsense.location.LocationRepository;
+import com.nisatsama.shelfsense.location.LocationType;
+import com.nisatsama.shelfsense.product.Product;
+import com.nisatsama.shelfsense.product.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +19,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
+
+import java.math.BigDecimal;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -26,10 +35,15 @@ class AuthenticationIntegrationTests {
     @Autowired MockMvc mvc;
     @Autowired AccountRepository accounts;
     @Autowired PasswordEncoder encoder;
+    @Autowired ProductRepository productRepository;
+    @Autowired LocationRepository locationRepository;
+    @Autowired InventoryService inventoryService;
     @Value("${shelfsense.security.jwt.secret}") String signingSecret;
     private Account account;
     private String loginIdentifier;
     private String password;
+    private Long testProductId;
+    private Long testLocationId;
 
     @BeforeEach
     void createAccount() {
@@ -40,6 +54,24 @@ class AuthenticationIntegrationTests {
         account.setPasswordHash(encoder.encode(password));
         account.setRole(AccountRole.USER);
         account = accounts.saveAndFlush(account);
+
+        String u = UUID.randomUUID().toString().substring(0, 8);
+        Product product = new Product();
+        product.setSku("AUTH-PROD-" + u);
+        product.setName("Auth Test Product");
+        product.setCategory("FOODS");
+        product.setUnitPrice(new BigDecimal("10.00"));
+        product = productRepository.saveAndFlush(product);
+        testProductId = product.getId();
+
+        Location location = new Location();
+        location.setCode("AUTH-LOC-" + u);
+        location.setName("Auth Test Location");
+        location.setType(LocationType.STORE);
+        location = locationRepository.saveAndFlush(location);
+        testLocationId = location.getId();
+
+        inventoryService.findOrCreateZeroStock(product, location);
     }
 
     @Test
@@ -54,7 +86,7 @@ class AuthenticationIntegrationTests {
                 .andReturn().getResponse().getContentAsString();
         assertThat(response).doesNotContain(password, account.getPasswordHash());
         String token = com.jayway.jsonpath.JsonPath.read(response, "$.accessToken");
-        mvc.perform(get("/api/v1/inventory/products/1/locations/1").header("Authorization", "Bearer " + token))
+        mvc.perform(get("/api/v1/inventory/products/" + testProductId + "/locations/" + testLocationId).header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk()).andExpect(header().doesNotExist("Set-Cookie"));
     }
 
@@ -70,9 +102,9 @@ class AuthenticationIntegrationTests {
         mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"loginIdentifier\":\"missing@example.com\",\"password\":\"wrong\"}"))
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
-        mvc.perform(get("/api/v1/inventory/products/1/locations/1"))
+        mvc.perform(get("/api/v1/inventory/products/" + testProductId + "/locations/" + testLocationId))
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.status").value(401));
-        mvc.perform(get("/api/v1/inventory/products/1/locations/1").header("Authorization", "Bearer not-a-jwt"))
+        mvc.perform(get("/api/v1/inventory/products/" + testProductId + "/locations/" + testLocationId).header("Authorization", "Bearer not-a-jwt"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -84,7 +116,7 @@ class AuthenticationIntegrationTests {
         String wrongSignature = token("milestone.user@example.com", "shelfsense", false, "different");
         String tampered = valid.substring(0, valid.length() - 2) + "aa";
         for (String value : new String[]{expired, tampered, wrongSignature, wrongIssuer}) {
-            mvc.perform(get("/api/v1/inventory/products/1/locations/1").header("Authorization", "Bearer " + value))
+            mvc.perform(get("/api/v1/inventory/products/" + testProductId + "/locations/" + testLocationId).header("Authorization", "Bearer " + value))
                     .andExpect(status().isUnauthorized());
         }
     }
@@ -97,7 +129,7 @@ class AuthenticationIntegrationTests {
         String jwt = com.jayway.jsonpath.JsonPath.read(token, "$.accessToken");
         account.setEnabled(false);
         accounts.saveAndFlush(account);
-        mvc.perform(get("/api/v1/inventory/products/1/locations/1").header("Authorization", "Bearer " + jwt))
+        mvc.perform(get("/api/v1/inventory/products/" + testProductId + "/locations/" + testLocationId).header("Authorization", "Bearer " + jwt))
                 .andExpect(status().isUnauthorized());
     }
 

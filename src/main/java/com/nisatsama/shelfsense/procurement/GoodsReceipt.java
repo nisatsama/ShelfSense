@@ -30,6 +30,9 @@ public class GoodsReceipt {
     @Column(name = "idempotency_key", length = 128, unique = true)
     private String idempotencyKey;
 
+    @Column(name = "request_hash", length = 64, updatable = false)
+    private String requestHash;
+
     @Column(name = "received_at", nullable = false, updatable = false)
     private LocalDateTime receivedAt;
 
@@ -57,6 +60,8 @@ public class GoodsReceipt {
     public void setNotes(String notes) { this.notes = notes; }
     public String getIdempotencyKey() { return idempotencyKey; }
     public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
+    public String getRequestHash() { return requestHash; }
+    public void setRequestHash(String requestHash) { this.requestHash = requestHash; }
     public LocalDateTime getReceivedAt() { return receivedAt; }
     public void setReceivedAt(LocalDateTime receivedAt) { this.receivedAt = receivedAt; }
     public List<GoodsReceiptItem> getItems() { return items; }

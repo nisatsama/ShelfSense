@@ -25,7 +25,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U shelfsense"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -49,9 +49,15 @@ jobs:
 
       - name: Start ML Service daemon for full-stack integration tests
         run: |
-          pip install -r ml/requirements.txt
-          PYTHONPATH=ml nohup uvicorn ml.src.api.main:app --host 127.0.0.1 --port 8001 > ml.log 2>&1 &
-          sleep 3
+          python -m pip install -r ml/requirements.txt
+          PYTHONPATH=ml nohup python -m uvicorn ml.src.api.main:app --host 127.0.0.1 --port 8001 > ml.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -f http://127.0.0.1:8001/health; then
+              echo "ML service is healthy"
+              break
+            fi
+            sleep 1
+          done
           curl -f http://127.0.0.1:8001/health || (cat ml.log && exit 1)
 
       - name: Run Maven Tests
@@ -59,7 +65,6 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/shelfsense
           SPRING_DATASOURCE_USERNAME: shelfsense
           SPRING_DATASOURCE_PASSWORD: shelfsense_dev
-          SHELF_SENSE_JWT_SECRET: ci_test_jwt_secret_must_be_sufficiently_long_for_hmac_sha256_verification_key_12345
           SHELF_SENSE_ML_URL: http://127.0.0.1:8001
         run: |
           chmod +x ./mvnw

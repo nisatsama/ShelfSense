@@ -13,11 +13,11 @@ The fastest way to run all four ShelfSense services is via Docker Compose:
 cp .env.example .env
 
 # 2. Configure a secure JWT secret in .env:
-# SHELF_SENSE_JWT_SECRET="your-32-plus-character-secret"
+# SHELF_SENSE_JWT_SECRET="<generate-with-openssl-rand-base64-32>"
 
 # 3. (Optional) Configure initial administrator credentials:
 # SHELF_SENSE_BOOTSTRAP_ADMIN_USERNAME="admin@shelfsense.local"
-# SHELF_SENSE_BOOTSTRAP_ADMIN_PASSWORD="StrongAdminPassword123!"
+# SHELF_SENSE_BOOTSTRAP_ADMIN_PASSWORD="<configure-strong-admin-password-min-12-chars>"
 
 # 4. Start all services
 docker compose up -d
